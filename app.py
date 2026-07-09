@@ -17,6 +17,7 @@ from flask import Flask, render_template, request
 
 from emotion_detector import detect_emotion
 from emotion_music_map import get_queries_for_emotion
+from topic_detector import detect_topics
 from itunes_client import ITunesClient
 
 app = Flask(__name__)
@@ -42,12 +43,29 @@ def recommend():
 
     emotion_result = detect_emotion(user_text)
     emotion = emotion_result["emotion"]
-    mapping = get_queries_for_emotion(emotion)
+    mood_mapping = get_queries_for_emotion(emotion)
+
+    topics = detect_topics(user_text)
+
+    # Build the final query list: if specific topics were mentioned
+    # (e.g. "football", "rain", "exam"), those searches are more specific
+    # and useful than generic mood searches, so they get more weight.
+    # We still blend in 1-2 mood queries so the emotional tone still
+    # comes through even when a topic is detected.
+    if topics:
+        topic_queries = []
+        for t in topics:
+            topic_queries.extend(t["queries"])
+        queries = topic_queries + mood_mapping["queries"][:1]
+        per_query = 3
+    else:
+        queries = mood_mapping["queries"]
+        per_query = 4
 
     tracks = []
     search_error = None
     try:
-        tracks = music_client.get_tracks_for_queries(mapping["queries"], per_query=4)
+        tracks = music_client.get_tracks_for_queries(queries, per_query=per_query)
     except Exception as e:
         search_error = f"Couldn't fetch tracks right now: {e}"
 
@@ -55,7 +73,8 @@ def recommend():
         "input_text": user_text,
         "emotion": emotion,
         "confidence": emotion_result["confidence"],
-        "description": mapping["description"],
+        "description": mood_mapping["description"],
+        "topics": topics,
         "tracks": tracks,
     }
 
