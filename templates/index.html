@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Moodstream — music for how you feel</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body class="{% if result %}state-{{ result.emotion }}{% endif %}">
+
+  <div class="waveform" aria-hidden="true">
+    {% for i in range(24) %}<span style="--i:{{ i }}"></span>{% endfor %}
+  </div>
+
+  <main class="wrap">
+    <header class="eyebrow">MOODSTREAM</header>
+    <h1>What's the shape<br>of your day?</h1>
+    <p class="sub">Describe how you're feeling, in your own words. We'll match it to something worth playing.</p>
+
+    <form method="POST" action="/recommend" class="feeling-form">
+      <textarea name="feeling" rows="3" placeholder="e.g. exhausted after exams but kind of relieved it's over..." required>{{ result.input_text if result else '' }}</textarea>
+      <button type="submit">Find my music</button>
+    </form>
+
+    {% if error %}
+      <div class="notice">{{ error }}</div>
+    {% endif %}
+
+    {% if result %}
+    <section class="result">
+      <div class="emotion-tag">
+        <span class="dot"></span>
+        Reading: <strong>{{ result.emotion }}</strong>
+        <span class="confidence">({{ (result.confidence * 100) | int }}% keyword match)</span>
+      </div>
+      <p class="desc">{{ result.description }}</p>
+
+      {% if result.tracks %}
+      <div class="tracks">
+        {% for track in result.tracks %}
+        <div class="track-card">
+          <a href="{{ track.store_url }}" target="_blank" rel="noopener">
+            {% if track.image %}
+              <img src="{{ track.image }}" alt="{{ track.album }} cover">
+            {% else %}
+              <div class="no-art">♪</div>
+            {% endif %}
+            <div class="track-info">
+              <div class="track-name">{{ track.name }}</div>
+              <div class="track-artist">{{ track.artists }}</div>
+            </div>
+          </a>
+          {% if track.preview_url %}
+            <audio controls preload="none" src="{{ track.preview_url }}"></audio>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+        <p class="notice">No tracks found — try describing your mood a little differently.</p>
+      {% endif %}
+    </section>
+    {% endif %}
+
+    <footer class="foot">Built with Apple's iTunes Search API · not affiliated with Apple</footer>
+  </main>
+</body>
+</html>
